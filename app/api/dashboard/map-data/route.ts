@@ -15,9 +15,9 @@ export async function GET(request: Request) {
     }
 
     const { data: mapData, error: rpcError } = await supabase
-      .rpc('get_map_data', {
+      .rpc('get_map_data' as any, {
         p_user_email: user.email!
-      })
+      } as any)
 
     if (rpcError) {
       console.error('맵 데이터 RPC 오류:', rpcError)
