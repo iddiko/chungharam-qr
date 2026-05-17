@@ -51,6 +51,7 @@ export default function QRListPage() {
   const [transferLoading, setTransferLoading] = useState(false)
   const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set())
   const [viewMode, setViewMode] = useState<'tree' | 'flat'>('tree')
+  const [detailModal, setDetailModal] = useState<{ open: boolean; qr: QRItem | null }>({ open: false, qr: null })
 
   const fetchQRList = useCallback(async (searchTerm?: string, statusTerm?: string) => {
     setLoading(true)
@@ -366,13 +367,14 @@ export default function QRListPage() {
                     const isHidden = viewMode === 'tree' && isChild && !expandedParents.has(qr.qr_parent_qr_id || '')
                     if (isHidden) return null
                     return (
-                      <tr key={qr.qr_id} className={'transition-colors ' + (isChild ? 'bg-blue-50/30' : 'hover:bg-gray-50')}>
+                      <tr key={qr.qr_id} className={'transition-colors cursor-pointer ' + (isChild ? 'bg-blue-50/30 hover:bg-blue-50/50' : 'hover:bg-gray-50')} onClick={() => setDetailModal({ open: true, qr })}>
                         {printMode && (
                           <td className="px-3 py-3">
                             <input
                               type="checkbox"
                               checked={selectedForPrint.has(qr.qr_id)}
                               onChange={() => togglePrintSelect(qr.qr_id)}
+                              onClick={(e) => e.stopPropagation()}
                               className="w-4 h-4 text-blue-600 rounded"
                             />
                           </td>
@@ -380,7 +382,7 @@ export default function QRListPage() {
                         <td className="px-3 py-3">
                           {isParent ? (
                             <button
-                              onClick={() => qr.child_count > 0 && toggleParent(qr.qr_id)}
+                              onClick={(e) => { e.stopPropagation(); qr.child_count > 0 && toggleParent(qr.qr_id) }}
                               className="flex items-center space-x-1.5 group"
                             >
                               {qr.child_count > 0 ? (
@@ -438,7 +440,7 @@ export default function QRListPage() {
                         </td>
                         <td className="px-3 py-3 text-center">
                           <button
-                            onClick={() => copyToClipboard(qr.qr_uuid, qr.qr_id)}
+                            onClick={(e) => { e.stopPropagation(); copyToClipboard(qr.qr_uuid, qr.qr_id) }}
                             className="text-gray-400 hover:text-blue-600 transition-colors"
                             title="UUID 복사"
                           >
@@ -448,7 +450,7 @@ export default function QRListPage() {
                         <td className="px-3 py-3 text-center">
                           {qr.qr_status === 'ACTIVE' && userInfo && qr.qr_owner_org_id !== userInfo.org_id && (
                             <button
-                              onClick={() => setTransferModal({ open: true, qr })}
+                              onClick={(e) => { e.stopPropagation(); setTransferModal({ open: true, qr }) }}
                               className="text-gray-400 hover:text-orange-600 transition-colors"
                               title="이동 요청"
                             >
@@ -465,6 +467,106 @@ export default function QRListPage() {
           </div>
         )}
       </div>
+
+      {/* QR 상세 팝업 모달 */}
+      {detailModal.open && detailModal.qr && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setDetailModal({ open: false, qr: null })}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">QR 코드 정보</h3>
+              <button onClick={() => setDetailModal({ open: false, qr: null })} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* QR 이미지 크게 */}
+            <div className="flex justify-center mb-5">
+              <div className="bg-white p-3 rounded-xl border-2 border-gray-100 shadow-sm">
+                <img
+                  src={getQRImageUrl(detailModal.qr.qr_uuid, 200)}
+                  alt="QR Code"
+                  className="w-48 h-48 rounded"
+                />
+              </div>
+            </div>
+
+            {/* QR 정보 */}
+            <div className="space-y-3 mb-5">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500">제품명</span>
+                <span className="text-sm font-semibold text-gray-900">{detailModal.qr.qr_product_name}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500">유형</span>
+                <span className="text-sm font-medium">
+                  {detailModal.qr.qr_level === 0 ? (
+                    <span className="flex items-center gap-1 text-blue-600"><Package size={14} /> 박스 {detailModal.qr.child_count > 0 ? `(${detailModal.qr.child_count}개)` : ''}</span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-green-600"><BoxSelect size={14} /> 개별</span>
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500">상태</span>
+                <span className={'px-2 py-0.5 rounded-full text-xs font-medium ' + (statusLabels[detailModal.qr.qr_status]?.color || 'bg-gray-100 text-gray-800')}>
+                  {statusLabels[detailModal.qr.qr_status]?.label || detailModal.qr.qr_status}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500">소속 조직</span>
+                <span className="text-sm text-gray-900">{detailModal.qr.org_name || '-'}</span>
+              </div>
+              {detailModal.qr.qr_parent_qr_uuid && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">상위 박스</span>
+                  <span className="text-xs font-mono text-gray-600">{detailModal.qr.qr_parent_qr_uuid}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500">생성일</span>
+                <span className="text-xs text-gray-600">{formatDate(detailModal.qr.qr_created_at)}</span>
+              </div>
+              <div className="pt-2 border-t border-gray-100">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">UUID</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-mono text-gray-400 max-w-[180px] truncate">{detailModal.qr.qr_uuid}</span>
+                    <button
+                      onClick={() => copyToClipboard(detailModal.qr!.qr_uuid, detailModal.qr!.qr_id)}
+                      className="text-gray-400 hover:text-blue-600 transition-colors"
+                      title="UUID 복사"
+                    >
+                      {copiedId === detailModal.qr.qr_id ? <CheckCircle size={12} className="text-green-500" /> : <Copy size={12} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 하단 버튼 */}
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setDetailModal({ open: false, qr: null })}
+                className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
+              >
+                닫기
+              </button>
+              {detailModal.qr.qr_status === 'ACTIVE' && userInfo && detailModal.qr.qr_owner_org_id !== userInfo.org_id && (
+                <button
+                  onClick={() => {
+                    setDetailModal({ open: false, qr: null })
+                    setTransferModal({ open: true, qr: detailModal.qr })
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 flex items-center justify-center space-x-1"
+                >
+                  <ArrowRightLeft size={14} />
+                  <span>이동 요청</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 이동 요청 모달 */}
       {transferModal.open && transferModal.qr && (
