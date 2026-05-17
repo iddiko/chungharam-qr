@@ -179,6 +179,7 @@ export const roleMenuItems: Record<UserRole, MenuItem[]> = {
     { label: 'QR 이동 관리', href: '/transfer/requests', icon: 'ArrowRightLeft' },
     { label: '설치 관리', href: '/install', icon: 'Wrench' },
     { label: '매출 관리', href: '/sales', icon: 'DollarSign' },
+    { label: '입출고 관리', href: '/inventory', icon: 'Package' },
   ],
   hq: [
     { label: '대시보드', href: '/dashboard', icon: 'LayoutDashboard' },
@@ -191,6 +192,7 @@ export const roleMenuItems: Record<UserRole, MenuItem[]> = {
     { label: 'QR 이동 관리', href: '/transfer/requests', icon: 'ArrowRightLeft' },
     { label: '설치 관리', href: '/install', icon: 'Wrench' },
     { label: '매출 관리', href: '/sales', icon: 'DollarSign' },
+    { label: '입출고 관리', href: '/inventory', icon: 'Package' },
   ],
   branch: [
     { label: '대시보드', href: '/dashboard', icon: 'LayoutDashboard' },
@@ -200,6 +202,7 @@ export const roleMenuItems: Record<UserRole, MenuItem[]> = {
     { label: 'QR 이동 관리', href: '/transfer/requests', icon: 'ArrowRightLeft' },
     { label: '설치 관리', href: '/install', icon: 'Wrench' },
     { label: '매출 관리', href: '/sales', icon: 'DollarSign' },
+    { label: '입출고 관리', href: '/inventory', icon: 'Package' },
   ],
   sub_branch: [
     { label: '대시보드', href: '/dashboard', icon: 'LayoutDashboard' },
@@ -209,6 +212,7 @@ export const roleMenuItems: Record<UserRole, MenuItem[]> = {
     { label: 'QR 이동 관리', href: '/transfer/requests', icon: 'ArrowRightLeft' },
     { label: '설치 관리', href: '/install', icon: 'Wrench' },
     { label: '매출 관리', href: '/sales', icon: 'DollarSign' },
+    { label: '입출고 관리', href: '/inventory', icon: 'Package' },
   ],
   office: [
     { label: '대시보드', href: '/dashboard', icon: 'LayoutDashboard' },
@@ -218,6 +222,7 @@ export const roleMenuItems: Record<UserRole, MenuItem[]> = {
     { label: 'QR 이동 요청', href: '/transfer/requests', icon: 'ArrowRightLeft' },
     { label: '설치 등록', href: '/install', icon: 'Wrench' },
     { label: '매출 등록', href: '/sales/create', icon: 'DollarSign' },
+    { label: '입출고 관리', href: '/inventory', icon: 'Package' },
   ],
   employee: [
     { label: '대시보드', href: '/dashboard', icon: 'LayoutDashboard' },
@@ -225,6 +230,7 @@ export const roleMenuItems: Record<UserRole, MenuItem[]> = {
     { label: 'QR 스캔', href: '/qr/scan', icon: 'ScanLine' },
     { label: '설치 등록', href: '/install', icon: 'Wrench' },
     { label: '매출 등록', href: '/sales/create', icon: 'DollarSign' },
+    { label: '입출고 관리', href: '/inventory', icon: 'Package' },
   ],
 }
 

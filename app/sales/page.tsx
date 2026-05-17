@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { DollarSign, TrendingUp, Calendar, Plus, RefreshCw, Building2 } from 'lucide-react'
+import { DollarSign, TrendingUp, Calendar, Plus, RefreshCw, Building2, ArrowRightLeft, Edit3, Wrench } from 'lucide-react'
 import SidebarLayout from '@/app/components/SidebarLayout'
 import { getCurrentUser, roleLabels, type UserRole } from '@/lib/auth'
 
@@ -14,6 +14,8 @@ interface SaleItem {
   sale_date: string
   customer_name: string | null
   notes: string | null
+  sale_type: string
+  transfer_request_id: string | null
   created_by: string
   created_at: string
   organizations: { name: string } | null
@@ -26,6 +28,7 @@ export default function SalesPage() {
   const [loading, setLoading] = useState(true)
   const [sales, setSales] = useState<SaleItem[]>([])
   const [filter, setFilter] = useState<'all' | 'today' | 'week' | 'month'>('all')
+  const [typeFilter, setTypeFilter] = useState<'ALL' | 'MANUAL' | 'TRANSFER' | 'INSTALLATION'>('ALL')
   const [stats, setStats] = useState({
     totalSales: 0,
     todaySales: 0,
@@ -43,7 +46,11 @@ export default function SalesPage() {
       const res = await fetch('/api/sales')
       const data = await res.json()
       if (res.ok) {
-        const salesData: SaleItem[] = data.sales || []
+        const salesData: SaleItem[] = (data.sales || []).map((s: any) => ({
+          ...s,
+          sale_type: s.sale_type || 'MANUAL',
+          transfer_request_id: s.transfer_request_id || null,
+        }))
         setSales(salesData)
 
         // 통계 계산
@@ -70,17 +77,24 @@ export default function SalesPage() {
 
   useEffect(() => { fetchSales() }, [])
 
-  const filteredSales = filter === 'all'
-    ? sales
-    : sales.filter(sale => {
-        const saleDate = new Date(sale.sale_date)
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        if (filter === 'today') return saleDate >= today
-        if (filter === 'week') { const w = new Date(today); w.setDate(w.getDate() - 7); return saleDate >= w }
-        if (filter === 'month') { const m = new Date(today); m.setMonth(m.getMonth() - 1); return saleDate >= m }
-        return true
-      })
+  const filteredSales = sales
+    .filter(sale => typeFilter === 'ALL' || sale.sale_type === typeFilter)
+    .filter(sale => {
+      if (filter === 'all') return true
+      const saleDate = new Date(sale.sale_date)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      if (filter === 'today') return saleDate >= today
+      if (filter === 'week') { const w = new Date(today); w.setDate(w.getDate() - 7); return saleDate >= w }
+      if (filter === 'month') { const m = new Date(today); m.setMonth(m.getMonth() - 1); return saleDate >= m }
+      return true
+    })
+
+  const saleTypeLabels: Record<string, { label: string; color: string; icon: any }> = {
+    MANUAL: { label: '수동 등록', color: 'bg-gray-100 text-gray-700', icon: Edit3 },
+    TRANSFER: { label: '이동 매출', color: 'bg-blue-100 text-blue-700', icon: ArrowRightLeft },
+    INSTALLATION: { label: '설치 매출', color: 'bg-purple-100 text-purple-700', icon: Wrench },
+  }
 
   const formatCurrency = (amount: number) => {
     if (amount >= 100000000) return (amount / 100000000).toFixed(1) + '억'
@@ -161,18 +175,33 @@ export default function SalesPage() {
         </div>
 
         {/* 필터 */}
-        <div className="flex items-center space-x-2">
-          {(['all', 'today', 'week', 'month'] as const).map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ' +
-                (filter === f ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50')}
-            >
-              {f === 'all' ? '전체' : f === 'today' ? '오늘' : f === 'week' ? '주간' : '월간'}
-            </button>
-          ))}
-          <span className="text-xs text-gray-500 ml-2">{filteredSales.length}건</span>
+        <div className="space-y-3">
+          <div className="flex items-center space-x-2">
+            {(['all', 'today', 'week', 'month'] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ' +
+                  (filter === f ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50')}
+              >
+                {f === 'all' ? '전체' : f === 'today' ? '오늘' : f === 'week' ? '주간' : '월간'}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-gray-400">유형:</span>
+            {(['ALL', 'MANUAL', 'TRANSFER', 'INSTALLATION'] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setTypeFilter(t)}
+                className={'px-3 py-1 rounded-lg text-xs font-medium transition-colors ' +
+                  (typeFilter === t ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50')}
+              >
+                {t === 'ALL' ? '전체' : t === 'MANUAL' ? '수동 등록' : t === 'TRANSFER' ? '이동 매출' : '설치 매출'}
+              </button>
+            ))}
+            <span className="text-xs text-gray-500 ml-2">{filteredSales.length}건</span>
+          </div>
         </div>
 
         {/* 매출 목록 테이블 */}
@@ -193,6 +222,7 @@ export default function SalesPage() {
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">날짜</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">유형</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">금액</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">제품</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">조직</th>
@@ -202,9 +232,21 @@ export default function SalesPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filteredSales.map(sale => (
-                    <tr key={sale.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={sale.id} className={'transition-colors ' + (sale.sale_type === 'TRANSFER' ? 'bg-blue-50/30 hover:bg-blue-50/50' : 'hover:bg-gray-50')}>
                       <td className="px-4 py-3">
                         <span className="text-xs text-gray-500">{formatDate(sale.sale_date)}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {(() => {
+                          const typeInfo = saleTypeLabels[sale.sale_type] || saleTypeLabels.MANUAL
+                          const TypeIcon = typeInfo.icon
+                          return (
+                            <span className={'px-2 py-0.5 rounded-full text-[10px] font-medium inline-flex items-center gap-1 ' + typeInfo.color}>
+                              <TypeIcon size={10} />
+                              {typeInfo.label}
+                            </span>
+                          )
+                        })()}
                       </td>
                       <td className="px-4 py-3">
                         <span className="text-sm font-bold text-gray-900">₩{Number(sale.amount).toLocaleString()}</span>

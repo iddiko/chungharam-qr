@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from 'react'
-import { QrCode, Search, Printer, RefreshCw, Copy, CheckCircle, ArrowRightLeft, Send, X } from 'lucide-react'
+import { QrCode, Search, Printer, RefreshCw, Copy, CheckCircle, ArrowRightLeft, Send, X, Package, BoxSelect, ChevronDown, ChevronRight } from 'lucide-react'
 import SidebarLayout from '@/app/components/SidebarLayout'
 import { getCurrentUser, type User as UserType } from '@/lib/auth'
 
@@ -11,9 +11,12 @@ interface QRItem {
   qr_product_name: string
   qr_status: string
   qr_parent_qr_id: string | null
+  qr_parent_qr_uuid: string | null
   qr_owner_org_id: string
   org_name: string
   qr_created_at: string
+  child_count: number
+  qr_level: number
 }
 
 function formatDate(dateStr: string) {
@@ -46,6 +49,8 @@ export default function QRListPage() {
   const [userInfo, setUserInfo] = useState<UserType | null>(null)
   const [transferModal, setTransferModal] = useState<{ open: boolean; qr: QRItem | null }>({ open: false, qr: null })
   const [transferLoading, setTransferLoading] = useState(false)
+  const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set())
+  const [viewMode, setViewMode] = useState<'tree' | 'flat'>('tree')
 
   const fetchQRList = useCallback(async (searchTerm?: string, statusTerm?: string) => {
     setLoading(true)
@@ -58,7 +63,20 @@ export default function QRListPage() {
       const url = '/api/qr/list' + (params.toString() ? '?' + params.toString() : '')
       const res = await fetch(url)
       const data = await res.json()
-      if (res.ok) setQrList(data.qrCodes || [])
+      if (res.ok) {
+        const codes = (data.qrCodes || []).map((q: any) => ({
+          ...q,
+          child_count: q.child_count ?? 0,
+          qr_level: q.qr_level ?? 0,
+          qr_parent_qr_uuid: q.qr_parent_qr_uuid ?? null,
+        }))
+        setQrList(codes)
+        // 모든 부모 QR을 기본 펼침
+        const parentIds = codes
+          .filter((q: QRItem) => q.child_count > 0)
+          .map((q: QRItem) => q.qr_id)
+        setExpandedParents(new Set(parentIds))
+      }
     } catch {
       setQrList([])
     } finally {
@@ -138,6 +156,35 @@ export default function QRListPage() {
     printWindow.document.close()
   }
 
+  const toggleParent = (qrId: string) => {
+    const next = new Set(expandedParents)
+    if (next.has(qrId)) next.delete(qrId)
+    else next.add(qrId)
+    setExpandedParents(next)
+  }
+
+  // 트리 뷰: 부모 먼저, 자식은 부모 바로 아래에 배치
+  const getTreeOrderedQRs = (): QRItem[] => {
+    if (viewMode === 'flat') return qrList
+
+    const parents = qrList.filter(q => q.qr_level === 0)
+    const children = qrList.filter(q => q.qr_level > 0)
+    const result: QRItem[] = []
+
+    for (const parent of parents) {
+      result.push(parent)
+      if (expandedParents.has(parent.qr_id)) {
+        const parentChildren = children.filter(c => c.qr_parent_qr_id === parent.qr_id)
+        result.push(...parentChildren)
+      }
+    }
+    // 부모가 없는 고아 자식도 포함
+    const orphanChildren = children.filter(c => !parents.some(p => p.qr_id === c.qr_parent_qr_id))
+    result.push(...orphanChildren)
+
+    return result
+  }
+
   const handleTransferRequest = async () => {
     if (!transferModal.qr || !userInfo) return
     setTransferLoading(true)
@@ -175,6 +222,24 @@ export default function QRListPage() {
             <p className="text-sm text-gray-500 mt-1">생성된 QR 코드 현황을 조회하고 관리합니다.</p>
           </div>
           <div className="flex items-center space-x-2">
+            <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+              <button
+                onClick={() => setViewMode('tree')}
+                className={'px-3 py-1.5 rounded-md text-xs font-medium flex items-center space-x-1 transition-colors ' +
+                  (viewMode === 'tree' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700')}
+              >
+                <Package size={12} />
+                <span>트리</span>
+              </button>
+              <button
+                onClick={() => setViewMode('flat')}
+                className={'px-3 py-1.5 rounded-md text-xs font-medium flex items-center space-x-1 transition-colors ' +
+                  (viewMode === 'flat' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700')}
+              >
+                <QrCode size={12} />
+                <span>목록</span>
+              </button>
+            </div>
             <button
               onClick={() => fetchQRList()}
               className="px-3 py-2 rounded-lg text-sm font-medium bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 flex items-center space-x-1"
@@ -221,6 +286,8 @@ export default function QRListPage() {
           </div>
           <div className="flex items-center space-x-4 mt-3 text-xs text-gray-500">
             <span>검색 결과: {qrList.length}개</span>
+            <span>박스: {qrList.filter(q => q.qr_level === 0).length}개</span>
+            <span>개별: {qrList.filter(q => q.qr_level > 0).length}개</span>
             <span>활성: {qrList.filter(q => q.qr_status === 'ACTIVE').length}</span>
             <span>이동대기: {qrList.filter(q => q.qr_status === 'PENDING').length}</span>
             <span>설치완료: {qrList.filter(q => q.qr_status === 'INSTALLED').length}</span>
@@ -279,6 +346,7 @@ export default function QRListPage() {
                         />
                       </th>
                     )}
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase">유형</th>
                     <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase">QR</th>
                     <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase">제품명</th>
                     <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase">UUID</th>
@@ -290,10 +358,15 @@ export default function QRListPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {qrList.map((qr) => {
+                  {getTreeOrderedQRs().map((qr) => {
                     const statusInfo = statusLabels[qr.qr_status] || { label: qr.qr_status, color: 'bg-gray-100 text-gray-800' }
+                    const isParent = qr.qr_level === 0
+                    const isChild = qr.qr_level > 0
+                    const isExpanded = expandedParents.has(qr.qr_id)
+                    const isHidden = viewMode === 'tree' && isChild && !expandedParents.has(qr.qr_parent_qr_id || '')
+                    if (isHidden) return null
                     return (
-                      <tr key={qr.qr_id} className="hover:bg-gray-50 transition-colors">
+                      <tr key={qr.qr_id} className={'transition-colors ' + (isChild ? 'bg-blue-50/30' : 'hover:bg-gray-50')}>
                         {printMode && (
                           <td className="px-3 py-3">
                             <input
@@ -305,14 +378,49 @@ export default function QRListPage() {
                           </td>
                         )}
                         <td className="px-3 py-3">
+                          {isParent ? (
+                            <button
+                              onClick={() => qr.child_count > 0 && toggleParent(qr.qr_id)}
+                              className="flex items-center space-x-1.5 group"
+                            >
+                              {qr.child_count > 0 ? (
+                                isExpanded
+                                  ? <ChevronDown size={14} className="text-blue-500" />
+                                  : <ChevronRight size={14} className="text-gray-400 group-hover:text-blue-500" />
+                              ) : (
+                                <span className="w-3.5" />
+                              )}
+                              <Package size={18} className="text-blue-600" />
+                              {qr.child_count > 0 && (
+                                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold">
+                                  {qr.child_count}
+                                </span>
+                              )}
+                            </button>
+                          ) : (
+                            <div className="flex items-center pl-5">
+                              <span className="text-gray-300 mr-1.5">└</span>
+                              <BoxSelect size={16} className="text-green-600" />
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-3">
                           <img
-                            src={getQRImageUrl(qr.qr_uuid, 40)}
+                            src={getQRImageUrl(qr.qr_uuid, isParent ? 40 : 32)}
                             alt="QR"
-                            className="w-10 h-10 rounded border border-gray-200"
+                            className={(isParent ? 'w-10 h-10' : 'w-8 h-8') + ' rounded border border-gray-200'}
                           />
                         </td>
                         <td className="px-3 py-3">
-                          <span className="text-sm font-semibold text-gray-900">{qr.qr_product_name}</span>
+                          <span className={'text-sm font-semibold text-gray-900 ' + (isChild ? 'pl-2' : '')}>
+                            {qr.qr_product_name}
+                          </span>
+                          {isParent && qr.child_count > 0 && (
+                            <span className="ml-2 text-[10px] text-blue-500 font-medium">박스</span>
+                          )}
+                          {isChild && (
+                            <span className="ml-2 text-[10px] text-green-500 font-medium">개별</span>
+                          )}
                         </td>
                         <td className="px-3 py-3">
                           <span className="text-xs font-mono text-gray-500">{qr.qr_uuid}</span>
