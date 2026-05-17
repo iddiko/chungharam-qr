@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     }
 
     // RPC 결과를 클라이언트에서 사용하기 쉽게 변환
-    const formattedUsers = (users || []).map((u: any) => ({
+    const formattedUsers = ((users || []) as any[]).map((u: any) => ({
       id: u.id,
       email: u.email,
       name: u.name,
