@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from 'react'
-import { QrCode, Search, Printer, RefreshCw, Copy, CheckCircle, ArrowRightLeft, Send, X, Package, BoxSelect, ChevronDown, ChevronRight, RotateCcw } from 'lucide-react'
+import { QrCode, Search, Printer, RefreshCw, Copy, CheckCircle, ArrowRightLeft, Send, X, Package, BoxSelect, ChevronDown, ChevronRight } from 'lucide-react'
 import SidebarLayout from '@/app/components/SidebarLayout'
 import { getCurrentUser, type User as UserType } from '@/lib/auth'
 
@@ -51,7 +51,6 @@ export default function QRListPage() {
   const [transferLoading, setTransferLoading] = useState(false)
   const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set())
   const [viewMode, setViewMode] = useState<'tree' | 'flat'>('tree')
-  const [reactivatingId, setReactivatingId] = useState<string | null>(null)
 
   const fetchQRList = useCallback(async (searchTerm?: string, statusTerm?: string) => {
     setLoading(true)
@@ -155,29 +154,6 @@ export default function QRListPage() {
       '<script>window.onload=function(){window.print()}</script></body></html>'
     )
     printWindow.document.close()
-  }
-
-  const handleReactivate = async (qrId: string) => {
-    if (!confirm('이 QR 코드를 재활성화하시겠습니까?')) return
-    setReactivatingId(qrId)
-    try {
-      const res = await fetch('/api/qr/reactivate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ qrId })
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        alert(data.error || '재활성화에 실패했습니다.')
-        return
-      }
-      alert('QR 코드가 재활성화되었습니다.')
-      fetchQRList()
-    } catch {
-      alert('재활성화에 실패했습니다.')
-    } finally {
-      setReactivatingId(null)
-    }
   }
 
   const toggleParent = (qrId: string) => {
@@ -379,7 +355,6 @@ export default function QRListPage() {
                     <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase">생성시간</th>
                     <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase">복사</th>
                     <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase">이동</th>
-                    <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase">관리</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -478,22 +453,6 @@ export default function QRListPage() {
                               title="이동 요청"
                             >
                               <ArrowRightLeft size={14} />
-                            </button>
-                          )}
-                        </td>
-                        <td className="px-3 py-3 text-center">
-                          {(qr.qr_status === 'INACTIVE' || qr.qr_status === 'PENDING') && userInfo && (userInfo.role === 'super_admin' || userInfo.role === 'hq') && (
-                            <button
-                              onClick={() => handleReactivate(qr.qr_id)}
-                              disabled={reactivatingId === qr.qr_id}
-                              className="text-gray-400 hover:text-green-600 transition-colors disabled:opacity-50"
-                              title="재활성화"
-                            >
-                              {reactivatingId === qr.qr_id ? (
-                                <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-green-600" />
-                              ) : (
-                                <RotateCcw size={14} />
-                              )}
                             </button>
                           )}
                         </td>

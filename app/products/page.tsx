@@ -45,6 +45,7 @@ export default function ProductsPage() {
   const [userInfo, setUserInfo] = useState<UserType | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
+  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all')
 
   // 폼 상태
   const [showForm, setShowForm] = useState(false)
@@ -203,7 +204,10 @@ export default function ProductsPage() {
       p.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.product_sku && p.product_sku.toLowerCase().includes(searchTerm.toLowerCase()))
     const matchCategory = categoryFilter === 'all' || p.product_category === categoryFilter
-    return matchSearch && matchCategory
+    const matchActive = activeFilter === 'all' ||
+      (activeFilter === 'active' && p.product_is_active) ||
+      (activeFilter === 'inactive' && !p.product_is_active)
+    return matchSearch && matchCategory && matchActive
   })
 
   return (
@@ -266,6 +270,22 @@ export default function ProductsPage() {
               <option key={key} value={key}>{label}</option>
             ))}
           </select>
+          <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+            {([
+              { key: 'all', label: '전체' },
+              { key: 'active', label: '활성' },
+              { key: 'inactive', label: '비활성' },
+            ] as const).map(f => (
+              <button
+                key={f.key}
+                onClick={() => setActiveFilter(f.key)}
+                className={'px-3 py-1.5 rounded-md text-xs font-medium transition-colors ' +
+                  (activeFilter === f.key ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700')}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* 등록/수정 폼 */}
@@ -388,7 +408,7 @@ export default function ProductsPage() {
             {filteredProducts.map((product) => {
               const cat = categoryColors[product.product_category || 'etc'] || categoryColors.etc
               return (
-                <div key={product.product_id} className={`bg-white rounded-xl shadow-sm border ${cat.border} hover:shadow-md transition-all duration-200 overflow-hidden`}>
+                <div key={product.product_id} className={`rounded-xl shadow-sm border hover:shadow-md transition-all duration-200 overflow-hidden ${!product.product_is_active ? 'bg-gray-50 border-gray-200 opacity-70' : 'bg-white ' + cat.border}`}>
                   <div className={`h-2 bg-gradient-to-r ${
                     product.product_category === 'food' ? 'from-orange-400 to-orange-500' :
                     product.product_category === 'beverage' ? 'from-blue-400 to-blue-500' :
@@ -410,7 +430,10 @@ export default function ProductsPage() {
                         </div>
                       </div>
                       {!product.product_is_active && (
-                        <span className="px-2 py-0.5 text-[10px] font-bold bg-gray-100 text-gray-500 rounded-full">비활성</span>
+                        <span className="px-2 py-0.5 text-[10px] font-bold bg-red-100 text-red-600 rounded-full">비활성</span>
+                      )}
+                      {product.product_is_active && (
+                        <span className="px-2 py-0.5 text-[10px] font-bold bg-green-100 text-green-600 rounded-full">활성</span>
                       )}
                     </div>
 
@@ -431,10 +454,14 @@ export default function ProductsPage() {
                       <div className="flex items-center justify-end space-x-1 mt-3 pt-3 border-t border-gray-100">
                         <button
                           onClick={() => handleToggleActive(product)}
-                          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-blue-600 transition-colors"
+                          className={'p-1.5 rounded-lg transition-colors flex items-center space-x-1 ' +
+                            (product.product_is_active ? 'hover:bg-red-50 text-green-600 hover:text-red-600' : 'hover:bg-green-50 text-gray-400 hover:text-green-600')}
                           title={product.product_is_active ? '비활성화' : '활성화'}
                         >
-                          {product.product_is_active ? <ToggleRight size={16} className="text-green-500" /> : <ToggleLeft size={16} />}
+                          {product.product_is_active ? <ToggleRight size={16} className="text-green-500" /> : <ToggleLeft size={16} className="text-red-400" />}
+                          <span className={'text-[10px] font-medium ' + (product.product_is_active ? 'text-green-600' : 'text-red-500')}>
+                            {product.product_is_active ? 'ON' : 'OFF'}
+                          </span>
                         </button>
                         <button
                           onClick={() => startEdit(product)}
@@ -464,7 +491,8 @@ export default function ProductsPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">전체 {products.length}개 제품</span>
-              <span className="text-gray-500">활성 {products.filter(p => p.product_is_active).length}개</span>
+              <span className="text-green-600 font-medium">활성 {products.filter(p => p.product_is_active).length}개</span>
+              <span className="text-red-500 font-medium">비활성 {products.filter(p => !p.product_is_active).length}개</span>
             </div>
           </div>
         )}
