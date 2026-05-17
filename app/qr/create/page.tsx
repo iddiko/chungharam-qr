@@ -190,12 +190,14 @@ export default function CreateQRPage() {
     )
   }
 
-  // 본사/슈퍼관리자 여부 (부모 QR 숨김)
+  // 본사/슈퍼관리자 여부
   const isTopLevel = userPerm?.canCreateTopLevel === true
   // 부모 QR 필수 여부 (영업점, 영업사원)
   const mustSelectParent = userPerm && !userPerm.canCreateTopLevel && userPerm.canCreateChild
   // 사유 필수 여부 (영업사원)
   const mustInputReason = userPerm?.requiresReason === true
+  // 부모 QR 선택 표시 여부 (자식 QR 생성 권한이 있으면 표시)
+  const showParentSelect = userPerm?.canCreateChild === true
 
   return (
     <SidebarLayout>
@@ -204,11 +206,13 @@ export default function CreateQRPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">QR 코드 생성</h1>
           <p className="text-sm text-gray-500 mt-1">
-            {isTopLevel
-              ? '최상위 QR(박스)을 생성합니다. 제품을 선택하고 수량을 지정하세요.'
-              : mustSelectParent
-                ? '부모 QR(박스)을 선택하고 그 하위로 개별 제품 QR을 생성합니다.'
-                : '새로운 QR 코드를 생성합니다.'
+            {isTopLevel && showParentSelect
+              ? '부모 QR 없이 생성하면 박스 QR이 생성됩니다. 부모 QR을 선택하면 그 하위로 개별 제품 QR이 생성됩니다.'
+              : isTopLevel
+                ? '최상위 QR(박스)을 생성합니다. 제품을 선택하고 수량을 지정하세요.'
+                : mustSelectParent
+                  ? '부모 QR(박스)을 선택하고 그 하위로 개별 제품 QR을 생성합니다.'
+                  : '새로운 QR 코드를 생성합니다.'
             }
           </p>
           {userPerm && (
@@ -414,8 +418,8 @@ export default function CreateQRPage() {
               </p>
             </div>
 
-            {/* 부모 QR - 본사/슈퍼관리자는 숨김, 영업점/영업사원은 필수 */}
-            {!isTopLevel && (
+            {/* 부모 QR - 자식 QR 생성 권한이 있으면 표시 */}
+            {showParentSelect && (
               <div>
                 <label htmlFor="parentQRId" className="block text-sm font-medium text-gray-700 mb-1.5">
                   부모 QR (Box) {mustSelectParent ? <span className="text-red-500">*</span> : <span className="text-gray-400 text-xs">(선택)</span>}
