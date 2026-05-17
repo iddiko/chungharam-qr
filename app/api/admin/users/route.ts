@@ -82,7 +82,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: rpcError.message || '사용자 정보 저장에 실패했습니다.' }, { status: 500 })
     }
 
-    const u = Array.isArray(newUser) ? newUser[0] : newUser
+    const u = (Array.isArray(newUser) ? newUser[0] : newUser) as any
     const formattedUser = u ? {
       id: u.id,
       email: u.email,
@@ -130,7 +130,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: rpcError.message || '사용자 수정에 실패했습니다.' }, { status: 500 })
     }
 
-    const u = Array.isArray(updatedUser) ? updatedUser[0] : updatedUser
+    const u = (Array.isArray(updatedUser) ? updatedUser[0] : updatedUser) as any
     const formattedUser = u ? {
       id: u.id,
       email: u.email,
